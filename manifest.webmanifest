@@ -1,0 +1,16 @@
+{
+  "name": "原価ノート",
+  "short_name": "原価ノート",
+  "description": "飲食店のメニュー原価計算",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f3ee",
+  "theme_color": "#c2410c",
+  "lang": "ja",
+  "icons": [
+    {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml"},
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
