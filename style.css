@@ -112,3 +112,29 @@ table.t th.r,table.t td.r{text-align:right}
 .range{width:100%;accent-color:var(--accent)}
 .hidden{display:none!important}
 @media print{.top,.tabs,.btn,.icon-btn{display:none!important}main{padding:0}.card{box-shadow:none}}
+/* 読み取り・比較 */
+.tabs button.scan svg{background:var(--accent);color:#fff;border-radius:10px;padding:4px;width:30px;height:30px;margin-top:-6px}
+.tabs button.scan.on{background:none}
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 12px;border:2px dashed var(--line);border-radius:var(--radius);color:var(--accent);cursor:pointer;text-align:center}
+.drop:hover{border-color:var(--accent);background:var(--accent-soft)}
+.drop b{color:var(--ink)}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap}
+.thumb{position:relative;width:84px;height:110px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .pdf{font-weight:800;color:var(--danger)} .thumb small{font-size:10px;color:var(--sub);padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.thumb .x{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;cursor:pointer}
+.spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.rv{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;background:var(--surface)}
+.rv.off{opacity:.5}
+.rv-grid{display:grid;grid-template-columns:1fr;gap:6px;margin-top:6px}
+@media(min-width:640px){.rv-grid{grid-template-columns:1.3fr 1fr 1fr}}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.suggest ul{margin:8px 0 0;padding-left:18px;line-height:1.8}
+.advice{white-space:pre-wrap;background:var(--surface-2);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:14px}
+.cmp{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--sub);margin-top:2px}
+.cmp .best{color:var(--ok);font-weight:700}
+.rank{width:26px;height:26px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-weight:700;font-size:13px}
+.li:first-child .rank{background:var(--accent);color:#fff}
+.addp summary{cursor:pointer;color:var(--accent);margin-top:8px}
+.li .x{border:0;background:none;color:var(--mute);font-size:18px;cursor:pointer;margin-left:4px}
