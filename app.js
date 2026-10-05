@@ -314,6 +314,7 @@ const SUB={
     if(old)Object.assign(old,p);else st.preps.push(p);persist();closeSheet();render();toast('保存しました');}
 };
 const INP={q(v){S.q=v;const pos=document.activeElement.selectionStart;render();const el=document.querySelector('[data-input=q]');if(el){el.focus();try{el.setSelectionRange(pos,pos);}catch(e){}}},
+  scanText(v){SCAN.text=v;const b=document.querySelector('[data-act=scanRun]');if(b)b.disabled=!((SCAN.files.length||v.trim())&&(AI.mode==='sample'||AI.mode==='api'));},
   simUpLive(v){const el=document.getElementById('upLabel');if(el)el.textContent='+'+num(v)+'%';},menuCalc,matCalc,prepCalc};
 const CHG={cat(v){S.cat=v;render();},simUp(v){S.simUp=num(v);render();},qty(v,el){const m=store().menus.find(x=>x.id===el.dataset.id);if(m){m.qty=num(v);persist();render();}},menuCalc,matCalc,prepCalc,
   restore(v,el){const file=el.files[0];if(!file)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);if(!d.stores||!Array.isArray(d.stores))throw 0;
@@ -374,7 +375,7 @@ const b64=blob=>new Promise((ok,ng)=>{const r=new FileReader();r.onload=()=>ok(S
 const AI_ERR={not_granted:'Claude の利用が許可されませんでした。もう一度「読み取る」を押すと確認が出ます（ページを開き直してください）。',sampling_disabled:'このアカウントでは Claude を呼び出せません。',
   rate_limited:'混み合っています。少し待ってからもう一度お試しください。',image_rejected:'この画像は読み取れません。別の写真でお試しください。',images_unavailable:'この画面では画像を送れません。',
   invalid_json:'読み取り結果を整理できませんでした。もう一度お試しください。',refused:'この画像は読み取れませんでした。',passcode:'合言葉が違います（設定 → 読み取り）。',
-  no_api_key:'サーバーに Claude の API キーが設定されていません（README の「読み取りの設定」を参照）。',unavailable:'読み取り機能がこの環境では使えません。',cancelled:''};
+  no_api_key:'サーバーに Claude の API キーが設定されていません（README の「読み取りの設定」を参照）。',unavailable:'読み取り機能がこの環境では使えません。',cancelled:'',no_text:'文字を読み取れませんでした。明るい場所で真上から撮り直すか、文字を貼り付けてください。'};
 const aiErr=e=>AI_ERR[e&&e.code]??('読み取りに失敗しました'+(e&&e.code?`（${e.code}）`:'')+'。通信状況を確認して、もう一度お試しください。');
 
 /* ---------- 画像・PDF の準備 ---------- */
@@ -391,9 +392,30 @@ async function pdfToJpegs(file){const lib=await loadPdfjs(),doc=await lib.getDoc
   for(let i=1;i<=Math.min(doc.numPages,4);i++){const pg=await doc.getPage(i),vp0=pg.getViewport({scale:1}),vp=pg.getViewport({scale:Math.min(3,1600/Math.max(vp0.width,vp0.height))}),c=document.createElement('canvas');
     c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;out.push(await toJpeg(c));}return out;}
 
+/* ---------- 端末内での文字の読み取り（画像を Claude に送れない画面用） ---------- */
+// PDF に文字情報があればそのまま取り出す（納品書・請求書の PDF はたいていこれで読める）
+async function pdfText(file){const lib=await loadPdfjs(),doc=await lib.getDocument({data:await file.arrayBuffer()}).promise,out=[];
+  for(let i=1;i<=Math.min(doc.numPages,4);i++){const tc=await (await doc.getPage(i)).getTextContent();let line='',lastY=null;
+    tc.items.forEach(it=>{const y=Math.round(it.transform[5]);if(lastY!==null&&Math.abs(y-lastY)>3){out.push(line);line='';}line+=(line&&it.str?' ':'')+it.str;lastY=y;});if(line)out.push(line);}
+  return out.join('\n').trim();}
+// 写真は tesseract.js（日本語）で文字にする。初回だけ読み取り用データ（数MB）を取得する
+let ocrWorker=null;
+async function ocrImages(blobs,onStep){
+  if(!window.Tesseract)await new Promise((ok,ng)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';s.onload=ok;s.onerror=()=>ng(new Error('文字認識の部品を取得できません'));document.head.appendChild(s);});
+  if(!ocrWorker){onStep('文字認識の準備中（初回は数十秒かかります）…');
+    ocrWorker=await window.Tesseract.createWorker('jpn',1,{langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/jpn@1.0.0/4.0.0_best_int',gzip:true});}
+  const out=[];for(let i=0;i<blobs.length;i++){onStep(`文字を読み取り中（${i+1}/${blobs.length}枚目）…`);const r=await ocrWorker.recognize(blobs[i]);out.push(r.data.text);}
+  return out.join('\n---\n').replace(/[ \t]+/g,' ').trim();}
+// 選んだファイル・貼り付けた文字から、Claude に渡す文字を作る
+async function filesToText(onStep){const parts=[];
+  for(const f of SCAN.files){if(f.type==='application/pdf'){onStep('PDF の文字を取り出し中…');const t=await pdfText(f.file);if(t.length>20){parts.push(t);continue;}
+      parts.push(await ocrImages(await pdfToJpegs(f.file),onStep));}
+    else parts.push(await ocrImages([await toJpeg(f.file)],onStep));}
+  if(SCAN.text.trim())parts.push(SCAN.text.trim());return parts.join('\n---\n');}
+
 /* ---------- 読み取り画面 ---------- */
-const SCAN={files:[],busy:false,ctl:null,err:''};
-function scanPrompt(st){return `あなたは飲食店の仕入れ記録をつける係です。添付の画像は、レシート・納品書・請求書・スーパーの値札（棚札）のどれかです。複数枚あるときは同じ書類の続きです。
+const SCAN={files:[],busy:false,ctl:null,err:'',text:'',stage:''};
+function scanPrompt(st,text){return `あなたは飲食店の仕入れ記録をつける係です。${text?'下の「読み取った文字」は、レシート・納品書・請求書・スーパーの値札（棚札）のどれかを、端末の文字認識で読み取ったものです。誤認識（似た字・数字の取り違え、行のずれ）を含むので、文脈から正しく直して読んでください。':'添付の画像は、レシート・納品書・請求書・スーパーの値札（棚札）のどれかです。複数枚あるときは同じ書類の続きです。'}
 書かれている内容を読み取り、次の形のJSONだけを返してください。説明文は不要です。
 {"doc_type":"receipt|delivery|invoice|price_tag|other","shop":"店名・仕入先（チェーン名＋店舗名。なければ空文字）","date":"YYYY-MM-DD（不明なら空文字）","tax":"included|excluded|unknown",
  "items":[{"name":"商品名（略称は分かる範囲で一般的な名前に）","qty":購入個数(数値。値札なら1),"size":1個あたりの内容量(数値。不明なら null),"unit":"g|ml|個|本|枚|玉|袋|パック など size の単位","price":その行の支払金額(数値。値引き後・個数分),"tax_rate":8 または 10,"match":"下の材料リストのうち同じ物の名前（なければ空文字）","note":"特売・値引き・見切りなど（なければ空文字）"}]}
@@ -404,19 +426,22 @@ function scanPrompt(st){return `あなたは飲食店の仕入れ記録をつけ
 - 軽減税率（※・☆などの印、食品）は tax_rate 8、酒類・日用品は 10
 - tax は価格が税込表示なら included、税抜なら excluded
 - 読めない数字は推測せず null にする
-材料リスト: ${st.mats.map(m=>m.name).join('、')||'（なし）'}`;}
+材料リスト: ${st.mats.map(m=>m.name).join('、')||'（なし）'}${text?`\n\n読み取った文字:\n${text.slice(0,30000)}`:''}`;}
 
-V.scan=st=>{const ready=AI.mode==='sample'?AI.images:AI.mode==='api';
+V.scan=st=>{const ready=AI.mode==='sample'||AI.mode==='api',textMode=AI.mode==='sample'&&!AI.images,has=SCAN.files.length||SCAN.text.trim();
   return `<h1>読み取り</h1><p class="sub small" style="margin-top:0">レシート・納品書・値札の写真や PDF から、仕入れ値を記録します。読み取った内容は保存前に確認・修正できます。</p>
   <div class="card stack">
    <label class="drop" id="drop"><input type="file" accept="image/*,application/pdf" multiple data-change="scanFiles" class="hidden">
     <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
     <b>写真を撮る・ファイルを選ぶ</b><span class="small sub">レシート／納品書／値札（JPEG・PNG・PDF、複数枚OK）</span></label>
    ${SCAN.files.length?`<div class="thumbs">${SCAN.files.map((f,i)=>`<div class="thumb">${f.type==='application/pdf'?`<span class="pdf">PDF</span><small>${esc(f.name)}</small>`:`<img src="${f.url}" alt="">`}<button class="x" data-act="scanRemove" data-i="${i}" aria-label="外す">×</button></div>`).join('')}</div>`:''}
+   <details class="addp" ${SCAN.text?'open':''}><summary class="small">文字を貼り付けて読み取る</summary>
+    <textarea class="input" style="margin-top:8px;min-height:110px" data-input="scanText" placeholder="レシートや納品書の文字をそのまま貼り付け（iPhone は写真を開いて文字を長押し →「すべてを選択」→ コピー）">${esc(SCAN.text)}</textarea></details>
+   ${textMode?`<p class="note">この画面では画像を Claude に直接送れないため、端末の中で文字を読み取ってから Claude に整理してもらいます（PDF は文字情報をそのまま使用。写真の文字認識は初回だけ準備に数十秒かかります）。読み取りにくいときは、上の「文字を貼り付けて読み取る」が確実です。</p>`:''}
    ${SCAN.err?`<p class="small down">${esc(SCAN.err)}</p>`:''}
-   <div class="row">${SCAN.busy?`<span class="spin"></span><span class="sub">読み取り中…（10〜60秒ほど）</span><span class="spacer"></span><button class="btn" data-act="scanStop">中止</button>`:
-    `<span class="spacer"></span><button class="btn primary" data-act="scanRun" ${SCAN.files.length&&ready?'':'disabled'}>読み取る</button>`}</div>
-   ${!ready?`<p class="note">${AI.mode===null?'読み取り機能を準備しています…':AI.mode==='sample'?'この画面では画像を Claude に送れません。':'読み取り機能を使うには設定が必要です（README の「読み取りの設定」）。手入力は 材料 の各画面から行えます。'}</p>`:''}
+   <div class="row">${SCAN.busy?`<span class="spin"></span><span class="sub scan-stage">${esc(SCAN.stage||'読み取り中…')}</span><span class="spacer"></span><button class="btn" data-act="scanStop">中止</button>`:
+    `<span class="spacer"></span><button class="btn primary" data-act="scanRun" ${has&&ready?'':'disabled'}>読み取る</button>`}</div>
+   ${!ready?`<p class="note">${AI.mode===null?'読み取り機能を準備しています…':AI.mode==='sample'?'':'読み取り機能を使うには設定が必要です（README の「読み取りの設定」）。手入力は 材料 の各画面から行えます。'}</p>`:''}
   </div>
   <div class="card" style="margin-top:12px"><div class="row"><h2>最近の仕入れ記録</h2><span class="spacer"></span><button class="btn sm ghost" data-act="nav" data-v="compare">比較を見る</button></div>
    <div class="list">${prices(st).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.at||0)-(a.at||0)).slice(0,12).map(p=>{const m=st.mats.find(x=>x.id===p.mat);return `<div class="li" data-act="editMat" data-id="${p.mat}"><div class="main"><div class="name">${esc(m?m.name:'（削除した材料）')}</div><div class="meta">${esc(shopName(p.shop))}・${esc(p.date||'日付なし')}・${fq(p.size)}${esc(p.unit)}${p.src==='scan'?'・読取':''}</div></div><div class="val"><b>${yen(p.price)}</b><div class="small sub">${p.taxin?'税込':'税抜'}</div></div></div>`;}).join('')||'<div class="empty">まだ記録がありません</div>'}</div></div>`;};
@@ -459,7 +484,7 @@ function saveReview(){const st=store(),R=REVIEW;let shop=R.shop;
     if(!m){m={id:uid(),name:r.name,price,taxin:num(r.taxin),size,unit:r.unit,yield:100,supplier:shopName(shop),updated:R.date,hist:[]};st.mats.push(m);created++;}
     else if(r.apply){const sz=conv(size,r.unit,m.unit);if(sz>0){if(num(m.price)!==price||num(m.size)!==sz){m.hist=[...(m.hist||[]),{d:m.updated||'',price:num(m.price)}].slice(-20);updated++;}Object.assign(m,{price,taxin:num(r.taxin),size:sz,supplier:shopName(shop),updated:R.date});}}
     prices(st).push({id:uid(),mat:m.id,shop,price,taxin:num(r.taxin),size,unit:r.unit,date:R.date,src:'scan',at:now});added++;});
-  persist();closeSheet();REVIEW=null;SCAN.files.forEach(f=>f.url&&URL.revokeObjectURL(f.url));SCAN.files=[];render();
+  persist();closeSheet();REVIEW=null;SCAN.files.forEach(f=>f.url&&URL.revokeObjectURL(f.url));SCAN.files=[];SCAN.text='';render();
   toast(`${added}件を記録しました`+(created?`（新しい材料 ${created}）`:'')+(updated?`・原価を${updated}件更新`:'')+(bad?`・内容量/価格がない${bad}件は保存していません`:''));}
 
 // 見本: 架空のお店3つと、いくつかの材料の価格（比較画面の見本用）
@@ -518,9 +543,15 @@ function matPricesHtml(st,m){const ps=prices(st).filter(p=>p.mat===m.id).sort((a
 Object.assign(ACT,{
   scanRemove(d){const f=SCAN.files[Number(d.i)];if(f&&f.url)URL.revokeObjectURL(f.url);SCAN.files.splice(Number(d.i),1);render();},
   scanStop(){SCAN.ctl&&SCAN.ctl.abort();},
-  async scanRun(){const st=store();if(SCAN.busy||!SCAN.files.length)return;SCAN.busy=true;SCAN.err='';SCAN.ctl=new AbortController();render();
-    try{const blobs=[];for(const f of SCAN.files){if(f.type==='application/pdf')blobs.push(...await pdfToJpegs(f.file));else blobs.push(await toJpeg(f.file));}
-      const res=await aiJSON(scanPrompt(st),blobs.slice(0,5),SCAN.ctl.signal);SCAN.busy=false;render();openReview(st,res||{});}
+  async scanRun(){const st=store();if(SCAN.busy||!(SCAN.files.length||SCAN.text.trim()))return;SCAN.busy=true;SCAN.err='';SCAN.stage='';SCAN.ctl=new AbortController();render();
+    const step=t=>{SCAN.stage=t;const el=document.querySelector('.scan-stage');if(el)el.textContent=t;else render();};
+    try{let res;
+      const textOnly=(AI.mode==='sample'&&!AI.images)||!SCAN.files.length;
+      if(textOnly){const text=await filesToText(step);if(SCAN.ctl.signal.aborted)throw {code:'cancelled'};if(text.replace(/\s/g,'').length<5)throw {code:'no_text'};
+        step('Claude が内容を整理中（10〜60秒ほど）…');res=await aiJSON(scanPrompt(st,text),[],SCAN.ctl.signal);}
+      else{const blobs=[];for(const f of SCAN.files){if(f.type==='application/pdf')blobs.push(...await pdfToJpegs(f.file));else blobs.push(await toJpeg(f.file));}
+        step('Claude が読み取り中（10〜60秒ほど）…');res=await aiJSON(scanPrompt(st,SCAN.text.trim()),blobs.slice(0,5),SCAN.ctl.signal);}
+      SCAN.busy=false;render();openReview(st,res||{});}
     catch(e){SCAN.busy=false;SCAN.err=e&&e.code?aiErr(e):(e&&e.message)||aiErr(e);render();}},
   reviewSave:saveReview,
   aiAdvice,

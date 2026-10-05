@@ -47,6 +47,7 @@ HTML・CSS・JavaScript だけで動き、ビルドやサーバーは不要で�
 読み取りと「AIに相談」は Claude を使います。
 
 - **claude.ai のページで開いた場合**：閲覧している人の Claude アカウントで動くので、設定はいりません（最初の1回だけ利用の確認が出ます）。
+  - 画面によっては画像を Claude に直接送れません。そのときは端末の中で文字を読み取ってから（PDF は文字情報、写真は tesseract.js の日本語文字認識）、文字だけを Claude に送って整理します。レシートの文字を貼り付けて読み取ることもできます。
 - **Netlify などで公開した場合**：同梱のサーバー関数 `netlify/functions/read.mjs`（`/api/read`）が Claude API を呼び出します。
   1. [Claude Console](https://platform.claude.com/) で API キーを発行する（API の利用料が別にかかります）
   2. Netlify の Site configuration → Environment variables に `ANTHROPIC_API_KEY` を登録する
