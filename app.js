@@ -87,9 +87,9 @@ function sampleBar(){const st=blankStore('Room YOLO');st.target=22;st.round=100;
 let tt;function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),2200);}
 function sheet(title,body,foot){const w=document.getElementById('sheet');w.innerHTML=`<div class="sheet" role="dialog" aria-label="${esc(title)}"><header><h2>${esc(title)}</h2><span class="spacer"></span><button class="icon-btn" data-act="close" aria-label="閉じる">✕</button></header><div class="body">${body}</div>${foot?`<footer>${foot}</footer>`:''}</div>`;w.classList.add('on');document.body.style.overflow='hidden';}
 function closeSheet(){const w=document.getElementById('sheet');w.classList.remove('on');w.innerHTML='';document.body.style.overflow='';}
-const ICON={home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',menus:'<path d="M4 6h16M4 12h16M4 18h10"/>',mats:'<path d="M5 8h14l-1.5 11a2 2 0 0 1-2 1.8h-7A2 2 0 0 1 6.5 19z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',preps:'<path d="M4 10h16v3a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z"/><path d="M8 6c0-1 1-1 1-2M12 6c0-1 1-1 1-2M16 6c0-1 1-1 1-2"/>',sim:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h8M8 12h8M8 15h5"/>',compare:'<path d="M6 20V9M12 20V4M18 20v-7"/><circle cx="18" cy="8" r="2"/>'};
-const TABS=[['home','ホーム'],['menus','メニュー'],['scan','読取'],['mats','材料'],['compare','比較']];
-const TAB_OF={preps:'mats',sim:'menus',settings:''};
+const ICON={home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',menus:'<path d="M4 6h16M4 12h16M4 18h10"/>',mats:'<path d="M5 8h14l-1.5 11a2 2 0 0 1-2 1.8h-7A2 2 0 0 1 6.5 19z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',preps:'<path d="M4 10h16v3a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z"/><path d="M8 6c0-1 1-1 1-2M12 6c0-1 1-1 1-2M16 6c0-1 1-1 1-2"/>',sim:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h8M8 12h8M8 15h5"/>',compare:'<path d="M6 20V9M12 20V4M18 20v-7"/><circle cx="18" cy="8" r="2"/>',today:'<path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L20 8H6.2"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/>'};
+const TABS=[['home','ホーム'],['menus','メニュー'],['scan','読取'],['mats','材料'],['today','買い物']];
+const TAB_OF={preps:'mats',sim:'menus',compare:'today',settings:''};
 function renderTabs(){document.getElementById('tabs').innerHTML=TABS.map(([k,l])=>`<button class="${(TAB_OF[S.view]??S.view)===k?'on':''}${k==='scan'?' scan':''}" data-act="nav" data-v="${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>${l}</button>`).join('');}
 function render(){
   document.documentElement.dataset.theme=DATA.theme&&DATA.theme!=='auto'?DATA.theme:'';
@@ -299,6 +299,9 @@ const ACT={
   backup(){downloadText(`原価ノート_バックアップ_${today()}.json`,JSON.stringify(DATA,null,1),'application/json');toast('バックアップを書き出しました');}
 };
 const SUB={
+  saveShops(f){shops().forEach(s=>{if(f['n_'+s.id]!=null){s.name=String(f['n_'+s.id]).trim()||s.name;s.flyerUrl=String(f['u_'+s.id]||'').trim();}});
+    const n=String(f.new||'').trim();if(n&&!shops().some(s=>s.name===n))shops().push({id:uid(),name:n,flyerUrl:''});persist();closeSheet();render();toast('保存しました');},
+  saveBuyPick(f){const st=store(),b={};st.mats.forEach(m=>{if(f['c_'+m.id])b[m.id]=num(f['a_'+m.id])||num(m.size)||1;});st.buy=b;persist();closeSheet();render();toast(`${Object.keys(b).length}品を選びました`);},
   addStore(f){const st=blankStore(f.name.trim());DATA.stores.push(st);DATA.cur=st.id;persist();S.view='home';render();toast(`「${st.name}」を作成しました。材料から登録しましょう`);},
   saveStore(f){const st=store();Object.assign(st,{name:f.name.trim(),target:num(f.target)||30,round:num(f.round)||10,cats:String(f.cats).split(/[,、]/).map(s=>s.trim()).filter(Boolean)});persist();render();toast('保存しました');},
   saveMenu(f,form){const st=store(),old=st.menus.find(m=>m.id===f.id),m={...(old||{}),id:f.id||uid(),name:f.name.trim(),cat:(f.cat||'').trim()||'その他',price:num(f.price),tax:num(f.tax)||10,qty:num(f.mqty),misc:num(f.misc),memo:f.memo||'',active:!!f.active,lines:readLines(form)};
@@ -339,7 +342,18 @@ function obsUnit(o,m){const sz=conv(o.size,o.unit,m.unit);if(!(sz>0))return null
 const matBuyUnit=m=>{const s=num(m.size);return s>0?matEx(m)/s:0;};
 const ageDays=d=>d?Math.floor((Date.now()-new Date(d))/864e5):9999;
 // 店ごとの最新の価格（材料ごと）
-function latestByShop(st,m){const o={};prices(st).filter(p=>p.mat===m.id&&p.shop).forEach(p=>{const u=obsUnit(p,m);if(u==null)return;if(!o[p.shop]||(p.date||'')>=(o[p.shop].date||''))o[p.shop]={...p,u};});return Object.values(o).sort((a,b)=>a.u-b.u);}
+function latestByShop(st,m){const o={};prices(st).filter(p=>p.mat===m.id&&p.shop&&p.src!=='flyer').forEach(p=>{const u=obsUnit(p,m);if(u==null)return;if(!o[p.shop]||(p.date||'')>=(o[p.shop].date||''))o[p.shop]={...p,u};});return Object.values(o).sort((a,b)=>a.u-b.u);}
+// チラシの価格がその日に有効か（only_date は日替わり特売）
+const flyerOn=(p,d)=>p.src==='flyer'&&(p.only_date?p.only_date===d:(!p.valid_from||p.valid_from<=d)&&(!p.valid_to||d<=p.valid_to));
+// 税込の単価（買い物の支払額の目安。税抜で記録した価格は8%で換算）
+function obsUnitInc(o,m){const sz=conv(o.size,o.unit,m.unit);if(!(sz>0))return null;return num(o.price)*(o.taxin?1:1.08)/sz;}
+// 指定日の、お店ごとの一番安い価格（有効なチラシ価格と、いつもの価格＝チラシ以外の最新）
+function priceOn(st,m,d){const by={};
+  prices(st).filter(p=>p.mat===m.id&&p.shop).forEach(p=>{const u=obsUnitInc(p,m);if(u==null)return;const x=by[p.shop]=by[p.shop]||{reg:null,fly:null};
+    if(p.src==='flyer'){if(flyerOn(p,d)&&(!x.fly||u<x.fly.u))x.fly={...p,u,flyer:true};}
+    else if(!(p.date&&p.date>d)&&(!x.reg||(p.date||'')>=(x.reg.date||'')))x.reg={...p,u,flyer:false};});
+  // チラシより「いつもの価格」が安いときは、いつもの価格を使う
+  return Object.values(by).map(x=>x.fly&&(!x.reg||x.fly.u<=x.reg.u)?{...x.fly,regU:x.reg?x.reg.u:null}:x.reg).filter(Boolean).sort((a,b)=>a.u-b.u);}
 // 月の想定販売数から、材料ごとの月の仕入れ量（材料の単位、歩留まりのロス込み）
 function monthlyUsage(st){const use={};
   const add=(ref,amt,depth)=>{if(!ref||!(amt>0)||depth>6)return;const [k,id]=ref.split(':');
@@ -414,11 +428,11 @@ async function filesToText(onStep){const parts=[];
   if(SCAN.text.trim())parts.push(SCAN.text.trim());return parts.join('\n---\n');}
 
 /* ---------- 読み取り画面 ---------- */
-const SCAN={files:[],busy:false,ctl:null,err:'',text:'',stage:''};
+const SCAN={files:[],busy:false,ctl:null,err:'',text:'',stage:'',flyer:false};
 function scanPrompt(st,text){return `あなたは飲食店の仕入れ記録をつける係です。${text?'下の「読み取った文字」は、レシート・納品書・請求書・スーパーの値札（棚札）のどれかを、端末の文字認識で読み取ったものです。誤認識（似た字・数字の取り違え、行のずれ）を含むので、文脈から正しく直して読んでください。':'添付の画像は、レシート・納品書・請求書・スーパーの値札（棚札）のどれかです。複数枚あるときは同じ書類の続きです。'}
-書かれている内容を読み取り、次の形のJSONだけを返してください。説明文は不要です。
-{"doc_type":"receipt|delivery|invoice|price_tag|other","shop":"店名・仕入先（チェーン名＋店舗名。なければ空文字）","date":"YYYY-MM-DD（不明なら空文字）","tax":"included|excluded|unknown",
- "items":[{"name":"商品名（略称は分かる範囲で一般的な名前に）","qty":購入個数(数値。値札なら1),"size":1個あたりの内容量(数値。不明なら null),"unit":"g|ml|個|本|枚|玉|袋|パック など size の単位","price":その行の支払金額(数値。値引き後・個数分),"tax_rate":8 または 10,"match":"下の材料リストのうち同じ物の名前（なければ空文字）","note":"特売・値引き・見切りなど（なければ空文字）"}]}
+${SCAN.flyer?'これはスーパーのチラシです（特売の期間がある）。':''}書かれている内容を読み取り、次の形のJSONだけを返してください。説明文は不要です。今日は ${today()} です（年が書かれていない日付はこれに合わせる）。
+{"doc_type":"receipt|delivery|invoice|price_tag|flyer|other","shop":"店名・仕入先（チェーン名＋店舗名。なければ空文字）","date":"YYYY-MM-DD（不明なら空文字）","valid_from":"チラシの特売開始日 YYYY-MM-DD（チラシ以外・不明なら空文字）","valid_to":"チラシの特売終了日 YYYY-MM-DD（同上）","tax":"included|excluded|unknown",
+ "items":[{"name":"商品名（略称は分かる範囲で一般的な名前に）","qty":購入個数(数値。値札なら1),"size":1個あたりの内容量(数値。不明なら null),"unit":"g|ml|個|本|枚|玉|袋|パック など size の単位","price":その行の支払金額(数値。値引き後・個数分),"tax_rate":8 または 10,"match":"下の材料リストのうち同じ物の名前（なければ空文字）","note":"特売・値引き・見切り・お一人様○点限りなど（なければ空文字）","only_date":"日替わり特売ならその日 YYYY-MM-DD（それ以外は空文字）"}]}
 ルール:
 - 合計・小計・消費税・ポイント・レジ袋・預り金・お釣りの行は items に入れない
 - 値引きの行は直前の商品の price から引いて反映する
@@ -426,6 +440,7 @@ function scanPrompt(st,text){return `あなたは飲食店の仕入れ記録を�
 - 軽減税率（※・☆などの印、食品）は tax_rate 8、酒類・日用品は 10
 - tax は価格が税込表示なら included、税抜なら excluded
 - 読めない数字は推測せず null にする
+- チラシは載っている商品をすべて items に入れ、本体価格（税抜）と税込価格が両方あれば税込価格を price にして tax を included にする。「100gあたり」表示の商品は size 100・unit g・price はその価格にする
 材料リスト: ${st.mats.map(m=>m.name).join('、')||'（なし）'}${text?`\n\n読み取った文字:\n${text.slice(0,30000)}`:''}`;}
 
 V.scan=st=>{const ready=AI.mode==='sample'||AI.mode==='api',textMode=AI.mode==='sample'&&!AI.images,has=SCAN.files.length||SCAN.text.trim();
@@ -433,8 +448,9 @@ V.scan=st=>{const ready=AI.mode==='sample'||AI.mode==='api',textMode=AI.mode==='
   <div class="card stack">
    <label class="drop" id="drop"><input type="file" accept="image/*,application/pdf" multiple data-change="scanFiles" class="hidden">
     <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-    <b>写真を撮る・ファイルを選ぶ</b><span class="small sub">レシート／納品書／値札（JPEG・PNG・PDF、複数枚OK）</span></label>
+    <b>写真を撮る・ファイルを選ぶ</b><span class="small sub">レシート／納品書／値札／チラシ（JPEG・PNG・PDF、複数枚OK）</span></label>
    ${SCAN.files.length?`<div class="thumbs">${SCAN.files.map((f,i)=>`<div class="thumb">${f.type==='application/pdf'?`<span class="pdf">PDF</span><small>${esc(f.name)}</small>`:`<img src="${f.url}" alt="">`}<button class="x" data-act="scanRemove" data-i="${i}" aria-label="外す">×</button></div>`).join('')}</div>`:''}
+   <label class="row small" style="gap:6px"><input type="checkbox" data-change="scanFlyer" ${SCAN.flyer?'checked':''}> スーパーのチラシとして読み取る（特売の期間つきで記録）</label>
    <details class="addp" ${SCAN.text?'open':''}><summary class="small">文字を貼り付けて読み取る</summary>
     <textarea class="input" style="margin-top:8px;min-height:110px" data-input="scanText" placeholder="レシートや納品書の文字をそのまま貼り付け（iPhone は写真を開いて文字を長押し →「すべてを選択」→ コピー）">${esc(SCAN.text)}</textarea></details>
    ${textMode?`<p class="note">この画面では画像を Claude に直接送れないため、端末の中で文字を読み取ってから Claude に整理してもらいます（PDF は文字情報をそのまま使用。写真の文字認識は初回だけ準備に数十秒かかります）。読み取りにくいときは、上の「文字を貼り付けて読み取る」が確実です。</p>`:''}
@@ -444,7 +460,7 @@ V.scan=st=>{const ready=AI.mode==='sample'||AI.mode==='api',textMode=AI.mode==='
    ${!ready?`<p class="note">${AI.mode===null?'読み取り機能を準備しています…':AI.mode==='sample'?'':'読み取り機能を使うには設定が必要です（README の「読み取りの設定」）。手入力は 材料 の各画面から行えます。'}</p>`:''}
   </div>
   <div class="card" style="margin-top:12px"><div class="row"><h2>最近の仕入れ記録</h2><span class="spacer"></span><button class="btn sm ghost" data-act="nav" data-v="compare">比較を見る</button></div>
-   <div class="list">${prices(st).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.at||0)-(a.at||0)).slice(0,12).map(p=>{const m=st.mats.find(x=>x.id===p.mat);return `<div class="li" data-act="editMat" data-id="${p.mat}"><div class="main"><div class="name">${esc(m?m.name:'（削除した材料）')}</div><div class="meta">${esc(shopName(p.shop))}・${esc(p.date||'日付なし')}・${fq(p.size)}${esc(p.unit)}${p.src==='scan'?'・読取':''}</div></div><div class="val"><b>${yen(p.price)}</b><div class="small sub">${p.taxin?'税込':'税抜'}</div></div></div>`;}).join('')||'<div class="empty">まだ記録がありません</div>'}</div></div>`;};
+   <div class="list">${prices(st).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.at||0)-(a.at||0)).slice(0,12).map(p=>{const m=st.mats.find(x=>x.id===p.mat);return `<div class="li" data-act="editMat" data-id="${p.mat}"><div class="main"><div class="name">${esc(m?m.name:'（削除した材料）')}</div><div class="meta">${esc(shopName(p.shop))}・${esc(p.date||'日付なし')}・${fq(p.size)}${esc(p.unit)}${p.src==='scan'?'・読取':p.src==='flyer'?`・チラシ ${esc(flyerTerm(p))}`:''}</div></div><div class="val"><b>${yen(p.price)}</b><div class="small sub">${p.taxin?'税込':'税抜'}</div></div></div>`;}).join('')||'<div class="empty">まだ記録がありません</div>'}</div></div>`;};
 
 // 読み取り結果の確認シート
 let REVIEW=null;
@@ -452,15 +468,17 @@ function openReview(st,res){const its=Array.isArray(res.items)?res.items:[];
   const findShop=n=>{n=String(n||'').trim();if(!n)return '';const s=shops().find(x=>x.name===n||n.includes(x.name)||x.name.includes(n));return s?s.id:'';};
   const findMat=(n,name)=>{const t=String(n||name||'').trim();if(!t)return '';const m=st.mats.find(x=>x.name===t)||st.mats.find(x=>t.includes(x.name)||x.name.includes(t));return m?m.id:'';};
   const taxin=res.tax==='excluded'?0:null;
-  REVIEW={shop:findShop(res.shop),shopNew:findShop(res.shop)?'':String(res.shop||''),date:/^\d{4}-\d{2}-\d{2}$/.test(res.date||'')?res.date:today(),doc:res.doc_type||'',
+  const ymdOk=v=>/^\d{4}-\d{2}-\d{2}$/.test(v||'')?v:'',flyer=res.doc_type==='flyer'||SCAN.flyer;
+  REVIEW={shop:findShop(res.shop),shopNew:findShop(res.shop)?'':String(res.shop||''),date:ymdOk(res.date)||today(),doc:res.doc_type||'',flyer,
+    from:ymdOk(res.valid_from)||(flyer?today():''),to:ymdOk(res.valid_to)||'',
     rows:its.filter(x=>x&&x.name).map(x=>{const qty=num(x.qty)||1,size=x.size==null?null:num(x.size),mat=findMat(x.match,x.name),m=st.mats.find(y=>y.id===mat);
       // 値札・レシートの金額は「個数分」なので、1個あたりにする
       const unitPrice=Math.round(num(x.price)/qty*100)/100,tr=num(x.tax_rate)===8?8:num(x.tax_rate)===10?10:8;
-      return {on:num(x.price)>0,name:String(x.name),mat:mat||'',size:size||(m?num(m.size):''),unit:String(x.unit||'')||(m?m.unit:'個'),price:unitPrice,taxin:taxin===0?0:tr,note:String(x.note||''),apply:true};})};
+      return {on:num(x.price)>0&&(!flyer||!!mat),name:String(x.name),mat:mat||'',size:size||(m?num(m.size):''),unit:String(x.unit||'')||(m?m.unit:'個'),price:unitPrice,taxin:taxin===0?0:tr,note:String(x.note||''),apply:!flyer,only:ymdOk(x.only_date)};})};
   renderReview();}
 function reviewRowHtml(st,r,i){const m=st.mats.find(x=>x.id===r.mat),o={price:r.price,taxin:r.taxin,size:r.size,unit:r.unit},u=m?obsUnit(o,m):null,cur=m?matBuyUnit(m):0;
   return `<div class="rv ${r.on?'':'off'}" data-i="${i}">
-   <div class="row"><label class="row" style="gap:6px;flex:1;min-width:0"><input type="checkbox" data-rv="on" ${r.on?'checked':''}><b class="ell">${esc(r.name)}</b></label>${r.note?`<span class="chip warn">${esc(r.note)}</span>`:''}</div>
+   <div class="row"><label class="row" style="gap:6px;flex:1;min-width:0"><input type="checkbox" data-rv="on" ${r.on?'checked':''}><b class="ell">${esc(r.name)}</b></label>${r.only?`<span class="chip accent">${esc(r.only.slice(5).replace('-','/'))}限定</span>`:''}${r.note?`<span class="chip warn">${esc(r.note)}</span>`:''}</div>
    <div class="rv-grid">
     <select class="input" data-rv="mat"><option value="">＋ 新しい材料として登録</option>${st.mats.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja')).map(x=>`<option value="${x.id}" ${x.id===r.mat?'selected':''}>${esc(x.name)}（${esc(x.unit)}）</option>`).join('')}</select>
     <div class="row" style="gap:4px"><input class="input r" type="number" step="any" min="0" data-rv="size" value="${r.size??''}" placeholder="内容量"><select class="input" data-rv="unit" style="width:84px">${UNITS.concat(UNITS.includes(r.unit)?[]:[r.unit]).map(x=>`<option ${x===r.unit?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
@@ -472,20 +490,25 @@ function renderReview(){const st=store(),R=REVIEW,on=R.rows.filter(r=>r.on).leng
   sheet('読み取り結果の確認',`<div class="grid2">
    <label class="f">お店・仕入先<select class="input" data-rvh="shop"><option value="">＋ 新しいお店</option>${shops().map(s=>`<option value="${s.id}" ${s.id===R.shop?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
    <label class="f ${R.shop?'hidden':''}">新しいお店の名前<input class="input" data-rvh="shopNew" value="${esc(R.shopNew)}" placeholder="例: オークワ 有田店"></label>
-   <label class="f">日付<input class="input" type="date" data-rvh="date" value="${esc(R.date)}"></label></div>
+   <label class="f">${R.flyer?'チラシを見た日':'日付'}<input class="input" type="date" data-rvh="date" value="${esc(R.date)}"></label>
+   <label class="f">書類の種類<select class="input" data-rvh="flyer"><option value="">レシート・納品書・値札（いつもの価格）</option><option value="1" ${R.flyer?'selected':''}>チラシ（期間限定の特売）</option></select></label>
+   ${R.flyer?`<label class="f">特売の開始日<input class="input" type="date" data-rvh="from" value="${esc(R.from)}"></label><label class="f">特売の終了日<input class="input" type="date" data-rvh="to" value="${esc(R.to)}"></label>`:''}</div>
+   ${R.flyer?'<p class="note">チラシの価格は特売期間中だけ「今日の買い物」の計算に使い、いつもの価格の比較には入れません。材料に一致した商品だけを選んでいます。</p>':''}
    <p class="note">価格は「1個（1袋・1本）あたり」です。内容量は材料の単位（g・ml・個 など）で入れてください。チェックを外した行は保存しません。</p>
    <div id="rvRows">${R.rows.map((r,i)=>reviewRowHtml(st,r,i)).join('')||'<div class="empty">商品を読み取れませんでした。写真を撮り直すか、手入力してください。</div>'}</div>`,
    `<span class="small sub" style="align-self:center" id="rvCount">${on}件を保存</span><span class="spacer"></span><button class="btn ghost" data-act="close">キャンセル</button><button class="btn primary" data-act="reviewSave" ${on?'':'disabled'}>保存</button>`);}
 function saveReview(){const st=store(),R=REVIEW;let shop=R.shop;
+  if(R.flyer&&R.to&&R.from&&R.to<R.from){toast('特売の終了日が開始日より前になっています');return;}
   if(!shop){const n=R.shopNew.trim();if(!n){toast('お店の名前を入れてください');return;}const s={id:uid(),name:n};shops().push(s);shop=s.id;}
   let added=0,updated=0,created=0,bad=0;const now=Date.now();
   R.rows.filter(r=>r.on).forEach(r=>{const size=num(r.size),price=num(r.price);if(!(size>0)||!(price>0)){bad++;return;}
     let m=st.mats.find(x=>x.id===r.mat);
     if(!m){m={id:uid(),name:r.name,price,taxin:num(r.taxin),size,unit:r.unit,yield:100,supplier:shopName(shop),updated:R.date,hist:[]};st.mats.push(m);created++;}
     else if(r.apply){const sz=conv(size,r.unit,m.unit);if(sz>0){if(num(m.price)!==price||num(m.size)!==sz){m.hist=[...(m.hist||[]),{d:m.updated||'',price:num(m.price)}].slice(-20);updated++;}Object.assign(m,{price,taxin:num(r.taxin),size:sz,supplier:shopName(shop),updated:R.date});}}
-    prices(st).push({id:uid(),mat:m.id,shop,price,taxin:num(r.taxin),size,unit:r.unit,date:R.date,src:'scan',at:now});added++;});
-  persist();closeSheet();REVIEW=null;SCAN.files.forEach(f=>f.url&&URL.revokeObjectURL(f.url));SCAN.files=[];SCAN.text='';render();
-  toast(`${added}件を記録しました`+(created?`（新しい材料 ${created}）`:'')+(updated?`・原価を${updated}件更新`:'')+(bad?`・内容量/価格がない${bad}件は保存していません`:''));}
+    prices(st).push({id:uid(),mat:m.id,shop,price,taxin:num(r.taxin),size,unit:r.unit,date:R.date,src:R.flyer?'flyer':'scan',at:now,
+      ...(R.flyer?{valid_from:R.from||R.date,valid_to:R.to||'',only_date:r.only||''}:{})});added++;});
+  persist();closeSheet();const wasFlyer=R.flyer;REVIEW=null;SCAN.files.forEach(f=>f.url&&URL.revokeObjectURL(f.url));SCAN.files=[];SCAN.text='';SCAN.flyer=false;if(wasFlyer)S.view='today';render();
+  toast((R.flyer?`チラシの価格を${added}件記録しました`:`${added}件を記録しました`)+(created?`（新しい材料 ${created}）`:'')+(updated?`・原価を${updated}件更新`:'')+(bad?`・内容量/価格がない${bad}件は保存していません`:''));}
 
 // 見本: 架空のお店3つと、いくつかの材料の価格（比較画面の見本用）
 function samplePrices(st){const names=['スーパーA','スーパーB','業務用スーパーC'],ids=names.map(n=>{let x=shops().find(s=>s.name===n);if(!x){x={id:uid(),name:n};shops().push(x);}return x.id;});
@@ -494,7 +517,74 @@ function samplePrices(st){const names=['スーパーA','スーパーB','業務�
   const T={'冷凍うどん玉':[[230,5,'玉'],[218,5,'玉'],[1100,25,'玉']],'青ねぎ':[[198,100,'g'],[158,100,'g'],[300,500,'g']],'卵':[[248,10,'個'],[268,10,'個'],[298,10,'個']],
     '米':[[2580,5,'kg'],[2480,5,'kg'],[4200,10,'kg']],'牛バラ切り落とし':[[398,200,'g'],[358,200,'g'],[2200,1,'kg']],'砂糖':[[228,1,'kg'],[198,1,'kg'],null],
     'コーラ 500ml':[[98,1,'本'],[88,1,'本'],[1500,24,'本']],'炭酸水':[[88,1,'L'],[78,1,'L'],[1580,24,'L']],'レモン':[[98,1,'個'],[128,1,'個'],null],'氷':[[248,1,'kg'],null,[300,1,'kg']]};
-  st.prices=st.prices||[];st.mats.forEach(m=>{const t=T[m.name];if(!t)return;t.forEach((v,i)=>{if(v)st.prices.push({id:uid(),mat:m.id,shop:ids[i],price:v[0],taxin:8,size:v[1],unit:v[2],date:d(3+i*5),src:'sample',at:Date.now()});});});}
+  st.prices=st.prices||[];st.mats.forEach(m=>{const t=T[m.name];if(!t)return;t.forEach((v,i)=>{if(v)st.prices.push({id:uid(),mat:m.id,shop:ids[i],price:v[0],taxin:8,size:v[1],unit:v[2],date:d(3+i*5),src:'sample',at:Date.now()});});});
+  // チラシの特売（スーパーA: 今日から3日間、卵は今日だけ）
+  const f=n=>d(-n),F={'牛バラ切り落とし':[0,298,200,'g',''],'卵':[0,178,10,'個',f(0)],'青ねぎ':[2,98,100,'g','']};
+  st.mats.forEach(m=>{const x=F[m.name];if(x)st.prices.push({id:uid(),mat:m.id,shop:ids[x[0]],price:x[1],taxin:8,size:x[2],unit:x[3],date:d(0),src:'flyer',valid_from:d(0),valid_to:f(3),only_date:x[4],at:Date.now()});});
+  // 今日の買う材料の見本
+  const B={'牛バラ切り落とし':1000,'冷凍うどん玉':25,'青ねぎ':500,'卵':30,'米':5000};st.buy={};st.mats.forEach(m=>{if(B[m.name])st.buy[m.name&&m.id]=B[m.name];});}
+/* ---------- 今日の買い物（チラシ＋いつもの価格から、その日に一番安いお店を出す） ---------- */
+const flyerTerm=p=>p.only_date?`${p.only_date.slice(5).replace('-','/')}限定`:`${(p.valid_from||'').slice(5).replace('-','/')}〜${p.valid_to?p.valid_to.slice(5).replace('-','/'):''}`;
+const buySeg=()=>`<div class="seg" style="margin-bottom:10px"><button class="${S.view==='today'?'on':''}" data-act="nav" data-v="today">今日の買い物</button><button class="${S.view==='compare'?'on':''}" data-act="nav" data-v="compare">比較・提案</button></div>`;
+const buyList=st=>st.buy||(st.buy={});
+const hassle=st=>st.hassle??300;
+// 買う物ごとに、選んだお店の中で一番安い支払額。お店の組み合わせをすべて試し、「支払額＋お店を増やす手間」が一番小さいものを選ぶ
+function buyPlan(st,d){const list=buyList(st),items=Object.keys(list).map(id=>{const m=st.mats.find(x=>x.id===id);if(!m)return null;
+    const amt=num(list[id])||num(m.size)||1,ps=priceOn(st,m,d);return {m,amt,ps};}).filter(Boolean);
+  const priced=items.filter(it=>it.ps.length),shopIds=[...new Set(priced.flatMap(it=>it.ps.map(p=>p.shop)))].slice(0,12);
+  const costIn=(it,set)=>{let best=null;it.ps.forEach(p=>{if(set.has(p.shop)&&(!best||p.u<best.u))best=p;});return best;};
+  let plan=null;const H=hassle(st);
+  for(let mask=1;mask<(1<<shopIds.length);mask++){const set=new Set(shopIds.filter((_,i)=>mask&(1<<i)));let total=0,ok=true;
+    for(const it of priced){const b=costIn(it,set);if(!b){ok=false;break;}total+=b.u*it.amt;}
+    if(!ok)continue;const score=total+H*(set.size-1);if(!plan||score<plan.score-0.5||(Math.abs(score-plan.score)<=0.5&&set.size<plan.set.size))plan={set,total,score};}
+  const cheapest=priced.reduce((a,it)=>a+it.ps[0].u*it.amt,0),cheapestShops=new Set(priced.map(it=>it.ps[0].shop));
+  // 1店で全部買えるお店の支払額
+  const single=shopIds.map(id=>{const set=new Set([id]);let total=0,miss=0;priced.forEach(it=>{const b=costIn(it,set);if(b)total+=b.u*it.amt;else miss++;});return {shop:id,total,miss};}).sort((a,b)=>a.miss-b.miss||a.total-b.total);
+  return {items,priced,plan,cheapest,cheapestShops,single};}
+
+V.today=st=>{const d=S.buyDate||today(),list=buyList(st),bp=buyPlan(st,d),H=hassle(st);
+  const flyers=shops().map(s=>{const ps=prices(st).filter(p=>p.shop===s.id&&p.src==='flyer');const on=ps.filter(p=>flyerOn(p,d));
+    const end=on.map(p=>p.only_date||p.valid_to).filter(Boolean).sort()[0];return {s,on:on.length,end,any:ps.length};});
+  const plan=bp.plan,onePlace=bp.single.find(x=>!x.miss);
+  let advice='';
+  if(!bp.items.length)advice='買う材料を選ぶと、今日どのお店で買うのが一番安いかを計算します。';
+  else if(!bp.priced.length)advice='選んだ材料の価格がまだ記録されていません。レシート・値札・チラシを読み取ってください。';
+  else if(plan){const ss=[...plan.set];
+    advice=`<b>今日は ${ss.map(id=>'「'+esc(shopName(id))+'」').join('と')} で買うのがおすすめ</b>。支払額の目安 ${yen(plan.total)}（税込）。`;
+    if(onePlace&&ss.length>1)advice+=`<br>1か所（${esc(shopName(onePlace.shop))}）で全部買うより <b class="up">${yen(onePlace.total-plan.total)} 安い</b>です。`;
+    else if(ss.length===1&&bp.cheapestShops.size>1)advice+=`<br>お店を回って全部最安値で買っても差は ${yen(plan.total-bp.cheapest)} なので、1か所で済ませるのが効率的です。`;}
+  const missing=bp.items.filter(it=>!it.ps.length);
+  const row=it=>{const b=it.ps[0],inPlan=plan?it.ps.find(p=>plan.set.has(p.shop)):null,use=inPlan||b;
+    return `<div class="li" style="cursor:default"><div class="main"><div class="name">${esc(it.m.name)}</div>
+     <div class="cmp">${it.ps.length?it.ps.map(p=>`<span class="${p===use?'best':''}">${esc(shopName(p.shop))} ${yen(p.u*it.amt)}${p.flyer?` <i class="chip accent" style="height:18px">特売 ${esc(flyerTerm(p))}</i>`:''}</span>`).join(''):'<span class="down">価格の記録なし</span>'}</div></div>
+     <div class="val">${use?`<b>${yen(use.u*it.amt)}</b><div class="small sub">${esc(shopName(use.shop))}</div>`:''}<div class="row" style="gap:2px;justify-content:flex-end;margin-top:4px"><input class="input r" style="width:78px;height:32px" type="number" step="any" min="0" value="${fq(it.amt)}" data-change="buyAmt" data-id="${it.m.id}" aria-label="買う量"><span class="small sub">${esc(it.m.unit)}</span><button class="x" data-act="buyDel" data-id="${it.m.id}" aria-label="外す">×</button></div></div></div>`;};
+  return `${buySeg()}<div class="row wrap" style="margin-bottom:6px"><h1 style="margin:0">今日の買い物</h1><span class="spacer"></span><input class="input" type="date" style="width:auto" value="${d}" data-change="buyDate" aria-label="買い物の日"></div>
+  <p class="sub small" style="margin-top:0">チラシの特売（期間中のもの）と、いつもの価格（レシート・値札）から、この日に一番安く買えるお店を出します。</p>
+  <div class="card suggest"><h2>おすすめ</h2><p style="margin:8px 0 0;line-height:1.8">${advice}</p>
+   ${plan&&plan.set.size>0&&bp.priced.length?`<div style="margin-top:10px">${[...plan.set].map(id=>{const its=bp.priced.filter(it=>{const p=it.ps.filter(p=>plan.set.has(p.shop))[0];return p&&p.shop===id;});
+     return `<div class="group-title">${esc(shopName(id))}<span class="chip">${its.length}品・${yen(its.reduce((a,it)=>a+it.ps.filter(p=>plan.set.has(p.shop))[0].u*it.amt,0))}</span>${flyerLink(id)}</div><div class="small">${its.map(it=>esc(it.m.name)).join('、')}</div>`;}).join('')}</div>`:''}
+   ${missing.length?`<p class="note">価格の記録がない材料: ${missing.map(it=>esc(it.m.name)).join('、')}</p>`:''}</div>
+  <div class="card" style="margin-top:12px"><div class="row"><h2>買う材料（${bp.items.length}）</h2><span class="spacer"></span><button class="btn sm" data-act="buyPick">＋ 選ぶ</button>${bp.items.length?'<button class="btn sm ghost" data-act="buyClear">全部外す</button>':''}</div>
+   <div class="list">${bp.items.map(row).join('')||'<div class="empty">「＋ 選ぶ」から今日買う材料を選んでください</div>'}</div>
+   <p class="note">金額は「量」× お店ごとの1${'単位'}あたりの税込価格で出した目安です（パックの大きさの違いは考えません）。回るお店の数も考えて、お店を1つ増やす手間（移動の時間・ガソリン代など）を <input class="input r" style="width:84px;height:30px;display:inline-block" type="number" min="0" step="50" value="${H}" data-change="hassle" aria-label="お店を1つ増やす手間（円）"> 円として計算しています（0 にすると、全部を一番安いお店で買う計算）。</p></div>
+  <div class="card" style="margin-top:12px"><div class="row"><h2>チラシ</h2><span class="spacer"></span><button class="btn sm ghost" data-act="editShops">お店とチラシURL</button></div>
+   <div class="list">${flyers.map(f=>`<div class="li" style="cursor:default"><div class="main"><div class="name">${esc(f.s.name)}</div><div class="meta">${f.on?`この日に有効な特売 ${f.on}品${f.end?`（${esc(f.end.slice(5).replace('-','/'))}まで）`:''}`:f.any?'この日に有効な特売の記録なし':'チラシの記録なし'}</div></div>${flyerLink(f.s.id,true)}</div>`).join('')||'<div class="empty">お店がまだありません。レシートや値札を読み取ると登録されます。</div>'}</div>
+   <div class="row" style="margin-top:10px"><span class="small sub" style="flex:1">チラシのページを開いて、画面を保存（スクリーンショット）または PDF を保存し、読み取ってください。</span><button class="btn sm primary" data-act="scanFlyer">チラシを読み取る</button></div></div>`;};
+function flyerLink(id,btn){const s=shops().find(x=>x.id===id),u=s&&s.flyerUrl;if(!u||!/^https?:\/\//.test(u))return '';
+  return `<a class="${btn?'btn sm':'small'}" style="${btn?'':'margin-left:auto'}" href="${esc(u)}" target="_blank" rel="noopener noreferrer">チラシを見る ↗</a>`;}
+function shopsSheet(){const st=store();
+  sheet('お店とチラシURL',`<p class="sub small" style="margin-top:0">お店のホームページのチラシのページ（URL）を登録すると、「今日の買い物」からすぐ開けます。</p>
+   <form id="f" data-submit="saveShops">${shops().map(s=>{const n=DATA.stores.reduce((a,x)=>a+(x.prices||[]).filter(p=>p.shop===s.id).length,0);
+    return `<div class="rv"><div class="grid2"><label class="f">お店の名前<input class="input" name="n_${s.id}" value="${esc(s.name)}" required></label><label class="f">チラシのURL<input class="input" name="u_${s.id}" type="url" inputmode="url" value="${esc(s.flyerUrl||'')}" placeholder="https://…"></label></div>
+     <div class="row small sub" style="margin-top:6px">価格の記録 ${n}件<span class="spacer"></span>${n?'':`<button type="button" class="btn sm danger" data-act="delShop" data-id="${s.id}">削除</button>`}</div></div>`;}).join('')||'<div class="empty">お店がありません</div>'}
+    <div class="rv"><label class="f">お店を追加<input class="input" name="new" placeholder="例: スーパーA 有田店"></label></div></form>`,
+   `<span class="spacer"></span><button class="btn primary" data-act="submit">保存</button>`);}
+function buyPickSheet(){const st=store(),list=buyList(st),d=S.buyDate||today(),use=monthlyUsage(st);
+  const ms=st.mats.slice().sort((a,b)=>(priceOn(st,b,d).length?1:0)-(priceOn(st,a,d).length?1:0)||a.name.localeCompare(b.name,'ja'));
+  sheet('買う材料を選ぶ',`<form id="f" data-submit="saveBuyPick"><div class="list">${ms.map(m=>{const n=priceOn(st,m,d).length;return `<label class="li"><input type="checkbox" name="c_${m.id}" ${list[m.id]!=null?'checked':''}><div class="main"><div class="name">${esc(m.name)}</div><div class="meta">${n?`${n}店の価格あり`:'価格の記録なし'}${use[m.id]?`・月の使用量 約${fq(Math.round(use[m.id]))}${esc(m.unit)}`:''}</div></div>
+    <input class="input r" style="width:96px;height:36px" type="number" step="any" min="0" name="a_${m.id}" value="${list[m.id]??(num(m.size)||'')}"><span class="small sub" style="width:30px">${esc(m.unit)}</span></label>`;}).join('')||'<div class="empty">材料がありません</div>'}</div></form>`,
+   `<span class="small sub" style="align-self:center">量は材料の単位で入れます（初期値は1袋・1本分）</span><span class="spacer"></span><button class="btn primary" data-act="submit">決定</button>`);}
+
 /* ---------- 比較画面 ---------- */
 V.compare=st=>{const c=compareData(st),old=c.rows.filter(r=>r.ls.some(p=>ageDays(p.date)>60));
   const top=c.ranking[0];
@@ -505,7 +595,7 @@ V.compare=st=>{const c=compareData(st),old=c.rows.filter(r=>r.ls.some(p=>ageDays
   if(!c.rows.length)suggest.push('まだ比較できる記録がありません。「読み取り」でレシートや値札を記録すると、ここに比較が出ます。');
   else if(!c.compared)suggest.push('同じ材料を2か所以上のお店で記録すると、どこが安いか比べられます。');
   if(!st.menus.some(m=>num(m.qty)>0)&&c.rows.length)suggest.push('メニュー → 試算 で月の販売数を入れると、節約できる金額（月額）も計算します。');
-  return `<h1>比較・提案</h1><p class="sub small" style="margin-top:0">記録した仕入れ値から、材料ごとに一番安いお店と、使い分けたときの節約額を出します（税抜・材料の単位あたりで比較）。</p>
+  return `${buySeg()}<h1>比較・提案</h1><p class="sub small" style="margin-top:0">記録した仕入れ値から、材料ごとに一番安いお店と、使い分けたときの節約額を出します（税抜・材料の単位あたりで比較）。</p>
   <div class="card suggest"><h2>提案</h2><ul>${suggest.map(s=>`<li>${s}</li>`).join('')}</ul>
    ${c.compared&&AI.mode&&AI.mode!=='none'?`<div class="row" style="margin-top:6px"><span class="spacer"></span><button class="btn sm" data-act="aiAdvice" ${S.adviceBusy?'disabled':''}>${S.adviceBusy?'考え中…':'AIに買い方を相談する'}</button></div>`:''}
    ${S.advice?`<div class="advice">${esc(S.advice)}</div>`:''}</div>
@@ -530,17 +620,24 @@ ${lines.join('\n')}
 
 /* ---------- 材料シートの「お店別の価格」 ---------- */
 function matPricesHtml(st,m){const ps=prices(st).filter(p=>p.mat===m.id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  return `<h3>お店別の価格（${ps.length}）</h3><div class="list">${ps.map(p=>{const u=obsUnit(p,m);return `<div class="li" style="cursor:default"><div class="main"><div class="name">${esc(shopName(p.shop))}</div><div class="meta">${esc(p.date||'')}・${yen(p.price)}${p.taxin?'（税込）':''} / ${fq(p.size)}${esc(p.unit)}</div></div><div class="val">${u==null?'<span class="small down">単位違い</span>':`<b>${yenU(u)}</b><span class="small sub">/${esc(m.unit)}</span>`}<div><button type="button" class="btn sm ghost" data-act="usePrice" data-id="${p.id}">原価に使う</button><button type="button" class="x" data-act="delPrice" data-id="${p.id}" aria-label="削除">×</button></div></div></div>`;}).join('')||'<div class="empty" style="padding:10px">まだ記録がありません</div>'}</div>
+  return `<h3>お店別の価格（${ps.length}）</h3><div class="list">${ps.map(p=>{const u=obsUnit(p,m);return `<div class="li" style="cursor:default"><div class="main"><div class="name">${esc(shopName(p.shop))}</div><div class="meta">${p.src==='flyer'?`<span class="chip ${flyerOn(p,today())?'accent':''}">チラシ ${esc(flyerTerm(p))}</span> `:esc(p.date||'')+'・'}${yen(p.price)}${p.taxin?'（税込）':''} / ${fq(p.size)}${esc(p.unit)}</div></div><div class="val">${u==null?'<span class="small down">単位違い</span>':`<b>${yenU(u)}</b><span class="small sub">/${esc(m.unit)}</span>`}<div><button type="button" class="btn sm ghost" data-act="usePrice" data-id="${p.id}" ${p.src==='flyer'?'hidden':''}>原価に使う</button><button type="button" class="x" data-act="delPrice" data-id="${p.id}" aria-label="削除">×</button></div></div></div>`;}).join('')||'<div class="empty" style="padding:10px">まだ記録がありません</div>'}</div>
    <details class="addp"><summary class="small">＋ 値札・チラシの価格を手入力</summary><div class="grid2" style="margin-top:8px">
     <label class="f">お店<input class="input" id="ap_shop" list="shopList" placeholder="例: オークワ"><datalist id="shopList">${shops().map(s=>`<option value="${esc(s.name)}">`).join('')}</datalist></label>
     <label class="f">日付<input class="input" id="ap_date" type="date" value="${today()}"></label>
     <label class="f">価格（円）<input class="input r" id="ap_price" type="number" step="any" min="0"></label>
     <label class="f">税<select class="input" id="ap_tax"><option value="8">税込8%</option><option value="10">税込10%</option><option value="0">税抜</option></select></label>
     <label class="f">内容量<input class="input r" id="ap_size" type="number" step="any" min="0" value="${m.size||''}"></label>
+    <label class="f">チラシの特売なら終了日<input class="input" id="ap_to" type="date"></label>
     <label class="f">単位<select class="input" id="ap_unit">${UNITS.map(u=>`<option ${u===m.unit?'selected':''}>${u}</option>`).join('')}</select></label>
     <div class="full row"><span class="spacer"></span><button type="button" class="btn sm" data-act="addPrice" data-id="${m.id}">価格を記録</button></div></div></details>`;}
 
 Object.assign(ACT,{
+  scanFlyer(){SCAN.flyer=true;S.view='scan';window.scrollTo(0,0);render();},
+  editShops:shopsSheet,
+  delShop(d){if(!confirm('このお店を削除しますか？'))return;DATA.shops=shops().filter(s=>s.id!==d.id);persist();shopsSheet();render();},
+  buyPick:buyPickSheet,
+  buyDel(d){delete buyList(store())[d.id];persist();render();},
+  buyClear(){if(!confirm('買う材料をすべて外しますか？'))return;store().buy={};persist();render();},
   scanRemove(d){const f=SCAN.files[Number(d.i)];if(f&&f.url)URL.revokeObjectURL(f.url);SCAN.files.splice(Number(d.i),1);render();},
   scanStop(){SCAN.ctl&&SCAN.ctl.abort();},
   async scanRun(){const st=store();if(SCAN.busy||!(SCAN.files.length||SCAN.text.trim()))return;SCAN.busy=true;SCAN.err='';SCAN.stage='';SCAN.ctl=new AbortController();render();
@@ -558,20 +655,25 @@ Object.assign(ACT,{
   addPrice(d){const st=store(),m=st.mats.find(x=>x.id===d.id),g=id=>document.getElementById(id).value;const name=g('ap_shop').trim(),price=num(g('ap_price')),size=num(g('ap_size'));
     if(!name||!(price>0)||!(size>0)){toast('お店・価格・内容量を入れてください');return;}
     let s=shops().find(x=>x.name===name);if(!s){s={id:uid(),name};shops().push(s);}
-    prices(st).push({id:uid(),mat:m.id,shop:s.id,price,taxin:num(g('ap_tax')),size,unit:g('ap_unit'),date:g('ap_date')||today(),src:'manual',at:Date.now()});persist();editMat(m.id);toast('価格を記録しました');},
+    const to=g('ap_to'),d0=g('ap_date')||today();if(to&&to<d0){toast('特売の終了日が日付より前です');return;}
+    prices(st).push({id:uid(),mat:m.id,shop:s.id,price,taxin:num(g('ap_tax')),size,unit:g('ap_unit'),date:d0,src:to?'flyer':'manual',at:Date.now(),...(to?{valid_from:d0,valid_to:to,only_date:''}:{})});persist();editMat(m.id);toast('価格を記録しました');},
   delPrice(d){const st=store(),p=prices(st).find(x=>x.id===d.id);if(!p||!confirm('この価格の記録を削除しますか？'))return;st.prices=prices(st).filter(x=>x.id!==d.id);persist();editMat(p.mat);render();},
   usePrice(d){const st=store(),p=prices(st).find(x=>x.id===d.id),m=p&&st.mats.find(x=>x.id===p.mat);if(!m)return;const sz=conv(p.size,p.unit,m.unit);if(!(sz>0)){toast(`単位（${p.unit}→${m.unit}）を換算できません`);return;}
     if(num(m.price)!==num(p.price)||num(m.size)!==sz)m.hist=[...(m.hist||[]),{d:m.updated||'',price:num(m.price)}].slice(-20);
     Object.assign(m,{price:num(p.price),taxin:num(p.taxin),size:sz,supplier:shopName(p.shop),updated:p.date||today()});persist();editMat(m.id);render();toast(`${shopName(p.shop)} の価格を原価に使います`);}
 });
 Object.assign(CHG,{
+  scanFlyer(v,el){SCAN.flyer=el.checked;},
+  buyDate(v){S.buyDate=v||null;render();},
+  buyAmt(v,el){const st=store();if(!(num(v)>0)){toast('0より大きい数を入れてください');render();return;}buyList(st)[el.dataset.id]=num(v);persist();render();},
+  hassle(v){store().hassle=Math.max(0,num(v));persist();render();},
   scanFiles(v,el){const fs=[...el.files].filter(f=>/^image\//.test(f.type)||f.type==='application/pdf');if(!fs.length){toast('画像か PDF を選んでください');return;}
     fs.forEach(f=>SCAN.files.push({file:f,type:f.type,name:f.name,url:f.type==='application/pdf'?null:URL.createObjectURL(f)}));SCAN.files=SCAN.files.slice(0,6);SCAN.err='';el.value='';render();},
   apiUrl(v){DATA.apiUrl=v.trim();persist();},apiPass(v){DATA.apiPass=v;persist();}
 });
 // 確認シートの入力（行ごと・見出し）
 document.addEventListener('change',e=>{if(!REVIEW)return;const t=e.target,st=store();
-  if(t.dataset.rvh){REVIEW[t.dataset.rvh]=t.value;if(t.dataset.rvh==='shop')renderReview();return;}
+  if(t.dataset.rvh){const k=t.dataset.rvh;REVIEW[k]=k==='flyer'?!!t.value:t.value;if(k==='flyer'){REVIEW.rows.forEach(r=>{r.apply=!REVIEW.flyer;});if(REVIEW.flyer&&!REVIEW.from)REVIEW.from=REVIEW.date;}if(k==='shop'||k==='flyer')renderReview();return;}
   const k=t.dataset.rv;if(!k)return;const box=t.closest('.rv'),i=Number(box.dataset.i),r=REVIEW.rows[i];
   r[k]=t.type==='checkbox'?t.checked:k==='taxin'?num(t.value):k==='mat'||k==='unit'?t.value:num(t.value);
   if(k==='mat'){const m=st.mats.find(x=>x.id===r.mat);if(m&&!conv(r.size,r.unit,m.unit)&&r.unit!==m.unit){r.unit=m.unit;}}
